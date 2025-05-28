@@ -2,9 +2,10 @@
 
 /**
  * heap_create - Creates a new heap data structure
- * @data_cmp: A pointer to the comparison function for node data
+ * @data_cmp: Pointer to the comparison function for node data
  *
- * Return: A pointer to the created heap_t structure, or NULL on failure
+ * Return: A pointer to the newly created heap_t structure,
+ *         or NULL if memory allocation fails or if data_cmp is NULL
  */
 heap_t *heap_create(int (*data_cmp)(void *, void *))
 {
