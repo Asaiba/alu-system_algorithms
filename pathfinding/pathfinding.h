@@ -1,79 +1,91 @@
-#ifndef PATHFINDING_H
-#define PATHFINDING_H
+#ifndef __PATHFINDING_H__
+#define __PATHFINDING_H__
 
-#include "graphs.h"
-#include "queues.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <limits.h>
+#include <math.h>
+#include "graphs.h"
+#include "queues.h"
 
-#define RIGHT {1, 0}
-#define BOTTOM {0, 1}
-#define LEFT {-1, 0}
-#define TOP {0, -1}
+#define NUM_DIRECTIONS 4
+#define h(x1, y1, x2, y2)  (sqrt(pow(x2 - x1, 2) + pow(y2 - y1, 2)))
 
 /**
- * struct point_s - Structure storing coordinates
+ * enum direction_s - Defines directions to move
+ * @RIGHT: Move to the right (east)
+ * @BOTTOM: Move downwards (south)
+ * @LEFT: Move to the left (west)
+ * @TOP: Move upwards (north)
+ * author: Frank Onyema Orji
+ */
+enum direction_s
+{
+	RIGHT,
+	BOTTOM,
+	LEFT,
+	TOP
+};
+
+/**
+ * struct point_s - Structure to store coordinates
+ *
  * @x: X coordinate
  * @y: Y coordinate
  */
-
 typedef struct point_s
 {
-	int x;
-	int y;
+	int x; /**< X coordinate */
+	int y; /**< Y coordinate */
 } point_t;
 
-/* ---------------------------------------------------------------------------- */
-
-/* 2-dijkstra_graph.c */
 
 /**
- * struct dijkstra_vertex_s - Vertex structure in the context of Dijkstra's algorithm
- * This structure is used to store the state and track the path of each vertex during the
- * execution of Dijkstra's algorithm for finding the shortest path in a graph
- * @vertex: a pointer to the vertex itself, storing or referencing the actual graph vertex
- * @cml_weight: the cumulative weight from the source vertex to this vertex;
- *              it represents the total cost to reach this vertex from the source in the
- *              path found so far
- * @path_via: a pointer to another vertex structure indicating the previous vertex in the
- *            optimal path from the source;
- *            this helps in reconstructing the shortest path once the algorithm completes
+ * backtracking_array - Finds a path from start ---
+ * to target in a 2D array using backtracking.
+ * @map: 2D array representing the map (0 is walkable, 1 is blocked)
+ * @rows: Number of rows in the map
+ * @cols: Number of columns in the map
+ * @start: Starting coordinates
+ * @target: Target coordinates
+ * Return: Queue representing the path, or NULL if no path is found
  */
-
-typedef struct dijkstra_vertex_s
-{
-    vertex_t *vertex;      /* Pointer to the actual graph vertex */
-    size_t cml_weight;     /* Cumulative weight from source to this vertex */
-    vertex_t *path_via;    /* Pointer to the previous vertex in the shortest path */
-} dijkstra_vertex_t;
-
-
-/* ---------------------------------------------------------------------------- */
-
-/* task 0 */
 queue_t *backtracking_array(char **map, int rows, int cols,
-			    point_t const *start, point_t const *target);
-int point_push(queue_t **queue, int x, int y);
-int backtracker(queue_t **queue, int *saw, char **map, int rows,
-		int cols, int x, int y, point_t const *target);
+							point_t const *start, point_t const *target);
 
-/* task 1 */
-queue_node_t *graph_fill(queue_t *new_node, int *saw, const vertex_t *current,
-			 char *target);
+/**
+ * backtracking_graph - Finds a path from start----
+ * to target in a graph using backtracking.
+ * @graph: Graph representing the map
+ * @start: Starting vertex
+ * @target: Target vertex
+ * Return: Queue representing the path, or NULL if no path is found
+ */
 queue_t *backtracking_graph(graph_t *graph, vertex_t const *start,
-			    vertex_t const *target);
+							vertex_t const *target);
 
-/* task 2 */
-queue_t *constructPathFromQueue(dijkstra_vertex_t *d_queue, size_t target_i);
-int weightComparator(const void *param1, const void *param2);
-void evaluateVertexEdges(dijkstra_vertex_t *d_queue, size_t nb_vertices,
-			 size_t dq_head_i);
-int runDijkstraAlgorithm(dijkstra_vertex_t *d_queue, size_t nb_vertices,
-			 const vertex_t *start, const vertex_t *target,
-			 size_t dq_head_i, size_t *target_i);
+/**
+ * dijkstra_graph - Finds a path from start----
+ * to target in a graph using Dijkstra's algorithm.
+ * @graph: Graph representing the map
+ * @start: Starting vertex
+ * @target: Target vertex
+ * Return: Queue representing the path, or NULL if no path is found
+ */
 queue_t *dijkstra_graph(graph_t *graph, vertex_t const *start,
-			vertex_t const *target);
+						vertex_t const *target);
 
-#endif /* PATHFINDING_H */
+/**
+ * a_star_graph - Finds a path from start----
+ * to target in a graph using A* algorithm.
+ * @graph: Graph representing the map
+ * @start: Starting vertex
+ * @target: Target vertex
+ * Return: Queue representing the path, or NULL if no path is found
+ */
+queue_t *a_star_graph(graph_t *graph, vertex_t const *start,
+					  vertex_t const *target);
+
+#endif /* __PATHFINDING_H__ */

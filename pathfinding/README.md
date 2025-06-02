@@ -1,2 +1,1 @@
-### Data Structures & Alogrithms
-Readme file for the directory *pathfinding*.
+This is the readme file for pathfinding

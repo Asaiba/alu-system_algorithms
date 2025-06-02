@@ -1,240 +1,206 @@
 #include "pathfinding.h"
 
 /**
- * constructPathFromQueue - program that constructs a path
- * from the result of Dijkstra's algorithm
- * the function extracts and creates a queue representing
- * the shortest path to the target vertex
- * @d_queue: the array containing vertex states from Dijkstra's
- *           execution
- * @target_i: the index of the target vertex within the queue
- * Return: a queue representing the path from the start vertex
- *         to the target vertex
+ * get_min_distance - Finds the vertex with the
+ * lowest distance from the source.
+ * @graph: Pointer to the graph.
+ * @distance: Array of distances from the start vertex.
+ * @visited: Array indicating if a vertex has been visited.
+ * @index: Pointer to store the index of the vertex with the minimum distance.
+ * author: Frank Onyema Orji
+ * Return: Pointer to the vertex with
+ * the minimum distance, or NULL if none found.
  */
-
-queue_t *constructPathFromQueue(dijkstra_vertex_t *d_queue, size_t target_i)
+vertex_t *get_min_distance(graph_t *graph, size_t *distance,
+size_t *visited, size_t *index)
 {
-	queue_t *path = NULL;
-	vertex_t *via = NULL;
-	char *via_name = NULL;
-	long int i;
+	size_t min = ULONG_MAX;
+	size_t i;
+	vertex_t *vertex = graph->vertices;
 
-	if (!d_queue)
+	if (vertex == NULL)
 		return (NULL);
 
-	path = queue_create();
+	*index = ULONG_MAX;
 
-	if (!path)
-		return (NULL);
-
-	via_name = strdup(d_queue[target_i].vertex->content);
-	queue_push_front(path, (void *)via_name);
-	via = d_queue[target_i].path_via;
-
-	for (i = target_i; i >= 0; i--)
+	for (i = 0; i < graph->nb_vertices; i++)
 	{
-		if (d_queue[i].vertex == via)
+		if (visited[i] == 0 && min > distance[i])
 		{
-			via_name = strdup(d_queue[i].vertex->content);
-			queue_push_front(path, (void *)via_name);
-			via = d_queue[i].path_via;
+			min = distance[i];
+			*index = i;
 		}
 	}
 
-	if (via != NULL)
+	if (*index == ULONG_MAX)
+		return (NULL);
+
+	while (vertex)
 	{
-		while (path->front)
-			free(dequeue(path));
-		queue_delete(path);
-		path = NULL;
+		if (vertex->index == *index)
+			return (vertex);
+		vertex = vertex->next;
 	}
-	return (path);
+	return (NULL);
 }
 
 /**
- * weightComparator - program that compares two vertices based on
- * their cumulative weight
- * this function is used for sorting vertices during Dijkstra's algorithm
- * @param1: the first vertex to compare
- * @param2: the second vertex to compare
- * Return: an integer less than, equal to, or greater than zero if the
- *         first argument is considered to be respectively less than,
- *         equal to, or greater than the second
+ * insert_into_queue - Inserts vertices into the queue to form the path.
+ * @graph: Pointer to the graph with vertices.
+ * @path: Pointer to the path queue.
+ * @path_via: Array of vertices representing the path.
+ * @start: Pointer to the start vertex.
+ * @target: Pointer to the target vertex.
  */
-
-int weightComparator(const void *param1, const void *param2)
+void insert_into_queue(graph_t *graph, queue_t *path, vertex_t **path_via,
+					   vertex_t const *start, vertex_t const *target)
 {
-	dijkstra_vertex_t *D_vert1 = NULL, *D_vert2 = NULL;
+	size_t i = target->index;
 
-	if (!param1 && !param2)
-		return (0);
-	if (param1 && !param2)
-		return (1);
-	if (!param1 && param2)
-		return (-1);
+	if (!path_via[i])
+		return;
 
-	D_vert1 = (dijkstra_vertex_t *)param1;
-	D_vert2 = (dijkstra_vertex_t *)param2;
+	if (!queue_push_front(path, strdup(target->content)))
+		queue_delete(path);
 
-	if (D_vert1->cml_weight > D_vert2->cml_weight)
+	while (path_via[i] && i < graph->nb_vertices)
+	{
+		if (!queue_push_front(path, strdup(path_via[i]->content)))
+			queue_delete(path);
+		i = path_via[i]->index;
+		if (i == start->index)
+			return;
+	}
+}
+
+/**
+ * recursive_dijkstra - Recursive utility to find
+ * the shortest path using Dijkstra's algorithm.
+ * @graph: Pointer to the graph.
+ * @distance: Array of distances from the start vertex.
+ * @visited: Array indicating which vertices have been visited.
+ * @path_via: Array of vertices representing the path.
+ * @start: Pointer to the start vertex.
+ * @target: Pointer to the target vertex.
+ * @idx: Current index.
+ */
+void recursive_dijkstra(graph_t *graph, size_t *distance, size_t *visited,
+						vertex_t **path_via, vertex_t const *start,
+						vertex_t const *target, size_t idx)
+{
+	vertex_t *current;
+	edge_t *edge;
+	size_t i = 0, temp;
+
+	current = get_min_distance(graph, distance, visited, &idx);
+	if (!current)
+		return;
+
+	printf("Checking %s, distance from %s is %ld\n",
+		   current->content, start->content, distance[current->index]);
+	i = current->index;
+	edge = current->edges;
+	while (edge && visited[i] == 0)
+	{
+		temp = distance[i] + edge->weight;
+		if (distance[edge->dest->index] > temp)
+		{
+			distance[edge->dest->index] = temp;
+			path_via[edge->dest->index] = current;
+		}
+		edge = edge->next;
+	}
+	visited[i] = 1;
+	if (visited[target->index] == 1)
+		return;
+
+	recursive_dijkstra(graph, distance, visited, path_via, start, target, idx);
+}
+
+/**
+ * init_dijkstra - Initializes Dijkstra's algorithm.
+ * @graph: Pointer to the graph.
+ * @distance: Pointer to the array of distances.
+ * @visited: Pointer to the array of visited vertices.
+ * @path_via: Pointer to the array of path vertices.
+ *
+ * Return: 0 on success, 1 on failure.
+ */
+int init_dijkstra(graph_t *graph, size_t **distance, size_t **visited,
+				  vertex_t ***path_via)
+{
+	size_t i;
+
+	*visited = calloc(graph->nb_vertices, sizeof(**visited));
+	if (!*visited)
 		return (1);
-	else if (D_vert1->cml_weight < D_vert2->cml_weight)
-		return (-1);
-	else if (param1 > param2)
+
+	*path_via = calloc(graph->nb_vertices, sizeof(**path_via));
+	if (!*path_via)
+	{
+		free(*visited);
 		return (1);
-	else if (param1 < param2)
-		return (-1);
+	}
+
+	*distance = malloc(graph->nb_vertices * sizeof(**distance));
+	if (!*distance)
+	{
+		free(*visited);
+		free(*path_via);
+		return (1);
+	}
+
+	for (i = 0; i < graph->nb_vertices; i++)
+		(*distance)[i] = ULONG_MAX;
 
 	return (0);
 }
 
 /**
- * evaluateVertexEdges - program that evaluates and updates
- * the shortest paths to vertices connected to the current vertex
- * @d_queue: the array of vertices with their current state in
- *           Dijkstra's algorithm
- * @nb_vertices: the total number of vertices
- * @dq_head_i: the index of the current vertex being evaluated
- * Return: nothing (void)
+ * dijkstra_graph - Searches for the shortest path
+ * from a starting point to a target point in a graph.
+ * @graph: Pointer to the graph.
+ * @start: Pointer to the start vertex.
+ * @target: Pointer to the target vertex.
+ *
+ * Return: Queue containing the path from start to target,
+ * or NULL if no path found.
  */
-
-void evaluateVertexEdges(dijkstra_vertex_t *d_queue, size_t nb_vertices,
-			 size_t dq_head_i)
-{
-	dijkstra_vertex_t dq_head;
-	edge_t *temp_e = NULL;
-	size_t i;
-
-	if (!d_queue)
-		return;
-
-	dq_head = d_queue[dq_head_i];
-
-	for (temp_e = dq_head.vertex->edges; temp_e; temp_e = temp_e->next)
-	{
-		if (dq_head.path_via && strcmp(temp_e->dest->content, dq_head.path_via->content) == 0)
-			continue;
-
-		for (i = dq_head_i; i < nb_vertices; i++)
-		{
-			if (strcmp(temp_e->dest->content, d_queue[i].vertex->content) == 0)
-			{
-				if (dq_head.cml_weight + temp_e->weight < d_queue[i].cml_weight)
-				{
-					d_queue[i].cml_weight = dq_head.cml_weight + temp_e->weight;
-					d_queue[i].path_via = dq_head.vertex;
-				}
-			}
-		}
-	}
-
-	dq_head_i++;
-
-	qsort((void *)(d_queue + dq_head_i),
-	      nb_vertices - dq_head_i,
-	      sizeof(dijkstra_vertex_t), weightComparator);
-}
-
-/**
- * runDijkstraAlgorithm - program that implements Dijkstra's algorithm
- * for pathfinding between a start and a target vertex
- * this function evaluates shortest paths from the start vertex
- * to all others and identifies the path to a target vertex
- * @d_queue: the array of vertex states initialized for Dijkstra's algorithm
- * @nb_vertices: the total number of vertices in the graph
- * @start: a pointer to the start vertex
- * @target: a pointer to the target vertex
- * @dq_head_i: the index of the current vertex being evaluated
- * @target_i: a pointer to store the index of the target vertex once found
- * Return: 0 for success, 1 for failure
- */
-
-int runDijkstraAlgorithm(dijkstra_vertex_t *d_queue, size_t nb_vertices,
-			 const vertex_t *start, const vertex_t *target,
-			 size_t dq_head_i, size_t *target_i)
-{
-	dijkstra_vertex_t dq_head;
-
-	if (!d_queue || !start || !target || !target_i)
-		return (1);
-
-	dq_head = d_queue[dq_head_i];
-
-	printf("Checking %s, distance from %s is %lu\n",
-	       dq_head.vertex->content, start->content, dq_head.cml_weight);
-
-	evaluateVertexEdges(d_queue, nb_vertices, dq_head_i);
-
-	if (strcmp(target->content, dq_head.vertex->content) == 0)
-	{
-		*target_i = dq_head_i;
-		return (0);
-	}
-
-	if (dq_head_i == nb_vertices - 1)
-		return (1);
-
-	if (d_queue[dq_head_i + 1].cml_weight == ULONG_MAX ||
-	    d_queue[dq_head_i + 1].path_via == NULL)
-		return (1);
-
-	return (runDijkstraAlgorithm(d_queue, nb_vertices, start, target,
-				     dq_head_i + 1, target_i));
-}
-
-/**
- * dijkstra_graph - program that sets up and executes Dijkstra's algorithm on a graph
- * this function initializes a queue for the Dijkstra process, sorts vertices,
- * and calculates the shortest path from a start to a target vertex
- * @graph: a pointer to the graph containing the vertices
- * @start: a pointer to the starting vertex for the pathfinding
- * @target: a pointer to the target vertex for the pathfinding
- * Return: a queue representing the shortest path from start to target,
- *         or NULL if the path cannot be established or memory allocation fails
- */
-
 queue_t *dijkstra_graph(graph_t *graph, vertex_t const *start,
-			vertex_t const *target)
+vertex_t const *target)
 {
-	dijkstra_vertex_t *dijkstra_queue = NULL;
-	vertex_t *temp_v = NULL;
-	size_t i, target_i;
-	queue_t *path = NULL;
+	size_t *distance = NULL, *visited = NULL;
+	queue_t *queue = NULL;
+	vertex_t **path_via = NULL;
 
-	if (!graph || !graph->nb_vertices || !graph->vertices ||
-	    !start || !target)
+	if (!graph || !start || !target)
 		return (NULL);
 
-	dijkstra_queue = malloc(sizeof(dijkstra_vertex_t) * graph->nb_vertices);
-
-	if (!dijkstra_queue)
+	if (init_dijkstra(graph, &distance, &visited, &path_via) != 0)
 		return (NULL);
 
-	for (i = 0, temp_v = graph->vertices; i < graph->nb_vertices;
-	     i++, temp_v = temp_v->next)
+	queue = queue_create();
+	if (!queue)
 	{
-		dijkstra_queue[i].vertex = temp_v;
-
-		if (strcmp(start->content, temp_v->content) == 0)
-			dijkstra_queue[i].cml_weight = 0;
-		else
-			dijkstra_queue[i].cml_weight = ULONG_MAX;
-
-		dijkstra_queue[i].path_via = NULL;
-	}
-
-	qsort((void *)dijkstra_queue, graph->nb_vertices,
-	      sizeof(dijkstra_vertex_t), weightComparator);
-
-	if (runDijkstraAlgorithm(dijkstra_queue, graph->nb_vertices,
-			  start, target, 0, &target_i) != 0)
-	{
-		free(dijkstra_queue);
+		free(visited);
+		free(distance);
+		free(path_via);
 		return (NULL);
 	}
 
-	path = constructPathFromQueue(dijkstra_queue, target_i);
-	free(dijkstra_queue);
+	distance[start->index] = 0;
+	recursive_dijkstra(graph, distance, visited, path_via, start, target, 0);
 
-	return (path);
+	insert_into_queue(graph, queue, path_via, start, target);
+	free(visited);
+	free(distance);
+	free(path_via);
+
+	if (!queue->front)
+	{
+		queue_delete(queue);
+		return (NULL);
+	}
+
+	return (queue);
 }
